@@ -1,0 +1,68 @@
+---
+title: "Demand_Forcasting"
+author: "Jon Peters"
+date: "10/30/2020"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(forecast)
+```
+
+```{r}
+train <- read_csv("train.csv")
+test <- read_csv("test.csv")
+```
+
+```{r}
+train
+```
+
+
+```{r}
+ggplot(train, mapping = aes(x=date, y=sales, color = as.factor(store))) + geom_point() + theme_classic()
+```
+
+
+```{r}
+train_temp <- train %>% separate(date, c("year", "month", "day"), "-", remove = TRUE, convert = FALSE)
+train_temp$year <- as.integer(train_temp$year)
+train_temp$month <- as.integer(train_temp$month)
+train_temp$day <- as.integer(train_temp$day)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+summary(train)
+#No missing values!
+```
+
+```{r}
+fit <- auto.arima(ts(train[, 4]))
+
+
+forecast(fit)
+```
+
