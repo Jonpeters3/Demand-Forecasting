@@ -8,15 +8,28 @@ output: html_document
 ```{r}
 library(tidyverse)
 library(forecast)
-```
 
-```{r}
 train <- read_csv("train.csv")
 test <- read_csv("test.csv")
+
+numStores <- unique(train$store)
+numItems <- unique(train$item)
+
 ```
 
 ```{r}
-train
+for (i in 1:2){
+    for (j in 1:2){
+        t <- auto.arima((train %>% filter(store == i, item == j))$sales, seasonal = TRUE)
+        print(t$code)
+        plot(forecast(t,h=365))
+    }
+}
+```
+
+```{r}
+t <- auto.arima((train %>% filter(store == 1, item == 1))$sales)
+t$code
 ```
 
 
