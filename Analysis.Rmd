@@ -7,45 +7,89 @@ output: html_document
 
 ```{r}
 library(tidyverse)
+library(caret)
 library(forecast)
-
 train <- read_csv("train.csv")
 test <- read_csv("test.csv")
+numStores <- unique(train$store)
+numItems <- unique(train$item)
+
+
+
+
 
 numStores <- unique(train$store)
 numItems <- unique(train$item)
 
-```
-
-```{r}
-for (i in 1:2){
-    for (j in 1:2){
-        t <- auto.arima((train %>% filter(store == i, item == j))$sales, seasonal = TRUE)
-        print(t$code)
-        plot(forecast(t,h=365))
-    }
-}
-```
-
-```{r}
-t <- auto.arima((train %>% filter(store == 1, item == 1))$sales)
-t$code
-```
-
-
-```{r}
 ggplot(train, mapping = aes(x=date, y=sales, color = as.factor(store))) + geom_point() + theme_classic()
 ```
 
-
 ```{r}
-train_temp <- train %>% separate(date, c("year", "month", "day"), "-", remove = TRUE, convert = FALSE)
-train_temp$year <- as.integer(train_temp$year)
-train_temp$month <- as.integer(train_temp$month)
-train_temp$day <- as.integer(train_temp$day)
+for (i in numStores){
+    for (j in numItems){
+        temp_df <- data.frame()
+        t <- Arima((train %>% filter(store == i, item == j))$sales, order = c(0, 2, 2), seasonal = c(0, 0, 0))
+        
+        f <- Arima((test %>% filter(store == i, item == j))$date, model = t)
+        
+        temp_df <- cbind(Id = (test %>% filter(store == i, item == j))$id, x = as.data.frame(as.double(f$fitted)))
+        
+        finalDF <- rbind(finalDF, temp_df)
+    }
+}
+colnames(finalDF) <- c("Id", "sales")
+
+write_csv(finalDF, "submission.csv")
 ```
 
+```{r}
+train <- train %>% mutate(dayOfWeek = weekdays(date),
+                          year = lubridate::year(date), 
+                          month = lubridate::month(date),
+                          day = lubridate::day(date)) %>% select(-date)
 
+test <- test %>% mutate(dayOfWeek = weekdays(date),
+                        year = lubridate::year(date),
+                        month = lubridate::month(date),
+                        day = lubridate::day(date)) %>% select(-date)
+```
+
+```{r}
+finalDF <- data.frame()
+
+tune.grid <- expand.grid(n.trees = seq(200, 600, 25),
+                         interaction.depth = c(1, 2),
+                         n.minobsinnode = 10,
+                         shrinkage = .1)
+
+
+#for (i in numStores){
+    
+    for (j in numItems){
+        temp_df <- data.frame()
+        
+        linreg <- train(form=sales~., 
+                data=(train %>% filter(item == j) %>% select(-item)),
+                method = "gbm",
+                tuneGrid =tune.grid,
+                trControl=trainControl(method="repeatedcv",
+                                       number=5,
+                                       repeats = 3),
+                verbose = FALSE
+                )
+        
+        
+        temp_df <- data.frame(Id= (test %>% filter(item == j) %>% select(id)), sales = predict(linreg, newdata = test %>% filter(item == j) %>% select(-id)))
+
+        finalDF <- rbind(finalDF, temp_df)
+    }
+#}
+colnames(finalDF) <- c("Id", "sales")
+
+write_csv(finalDF, "submission.csv")
+
+finalDF
+```
 
 
 
