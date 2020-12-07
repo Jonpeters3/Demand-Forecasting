@@ -14,15 +14,23 @@ test <- read_csv("test.csv")
 numStores <- unique(train$store)
 numItems <- unique(train$item)
 
-
-
-
-
 numStores <- unique(train$store)
 numItems <- unique(train$item)
 
+# Visualize any trends we have in out data by store
 ggplot(train, mapping = aes(x=date, y=sales, color = as.factor(store))) + geom_point() + theme_classic()
 ```
+
+Find any missing values.
+
+```{r}
+summary(train)
+#No missing values!
+
+
+```
+## Time Series
+Using an arima function to predict for each indovidual store and item.
 
 ```{r}
 for (i in numStores){
@@ -41,6 +49,7 @@ colnames(finalDF) <- c("Id", "sales")
 
 write_csv(finalDF, "submission.csv")
 ```
+## Feature Engineering
 
 ```{r}
 train <- train %>% mutate(dayOfWeek = weekdays(date),
@@ -54,22 +63,24 @@ test <- test %>% mutate(dayOfWeek = weekdays(date),
                         day = lubridate::day(date)) %>% select(-date)
 ```
 
+## Model Fitting
+
 ```{r}
 finalDF <- data.frame()
 
-tune.grid <- expand.grid(n.trees = seq(200, 600, 25),
-                         interaction.depth = c(1, 2),
-                         n.minobsinnode = 10,
+tune.grid <- expand.grid(n.trees = seq(1, 300, 10),
+                         interaction.depth = seq(1, 5, 1),
+                         n.minobsinnode = c(9, 10, 11),
                          shrinkage = .1)
 
 
-#for (i in numStores){
+for (i in numStores){
     
-    for (j in numItems){
+    #for (j in numItems){
         temp_df <- data.frame()
         
         linreg <- train(form=sales~., 
-                data=(train %>% filter(item == j) %>% select(-item)),
+                data=(train %>% filter(store == i) %>% select(-store)),
                 method = "gbm",
                 tuneGrid =tune.grid,
                 trControl=trainControl(method="repeatedcv",
@@ -79,47 +90,17 @@ tune.grid <- expand.grid(n.trees = seq(200, 600, 25),
                 )
         
         
-        temp_df <- data.frame(Id= (test %>% filter(item == j) %>% select(id)), sales = predict(linreg, newdata = test %>% filter(item == j) %>% select(-id)))
+        temp_df <- data.frame(Id= (test %>% filter(store == i) %>% select(id)), sales = predict(linreg, newdata = test %>% filter(store == i) %>% select(-id)))
 
         finalDF <- rbind(finalDF, temp_df)
-    }
-#}
+    #}
+}
 colnames(finalDF) <- c("Id", "sales")
+
+linreg$bestTune
 
 write_csv(finalDF, "submission.csv")
 
 finalDF
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```{r}
-summary(train)
-#No missing values!
-```
-
-```{r}
-fit <- auto.arima(ts(train[, 4]))
-
-
-forecast(fit)
 ```
 
